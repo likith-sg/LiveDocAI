@@ -75,7 +75,7 @@
     const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     const API = IS_LOCAL
         ? 'http://localhost:8000'
-        : 'livedocai-production.up.railway.app';  // ← UPDATE THIS after Railway deploy
+        : 'https://livedocai-production.up.railway.app';  // ← UPDATE THIS after Railway deploy
 
     // ── Counter animation helper ──────────────────────────────
     function animateCount(el, target, duration=800) {
