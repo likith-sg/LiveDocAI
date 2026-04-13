@@ -7,16 +7,18 @@ import logging
 import os
 import httpx
 import random
+import jwt
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional, List
+from sqlalchemy import text
 
 # --- Local Imports ---
 from app.config import get_settings
-from app.database import create_tables
+from app.database import create_tables, AsyncSessionLocal
 from app.middleware.traffic_capture import TrafficCaptureMiddleware
 from app.routers import auth, dashboard, docs_router
 from app.routers.logs import router as logs_router
@@ -34,24 +36,44 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 # ─────────────────────────────────────────────────────────────
-# 🤖 REALISTIC AUTO-TRAFFIC SIMULATOR (FOR DEMO)
+# 🤖 REALISTIC AUTO-TRAFFIC SIMULATOR (WITH USER ISOLATION)
 # ─────────────────────────────────────────────────────────────
 async def simulate_demo_traffic():
-    """Fires a rich mix of GET, POST, PUT, DELETE, and Error requests for the demo."""
-    await asyncio.sleep(5) # Wait for server to fully boot
+    """Fires a rich mix of requests explicitly attached to your user token."""
+    await asyncio.sleep(6) # Wait for server and DB to fully boot
     port = os.environ.get("PORT", "8000")
-    base_url = f"http://127.0.0.1:{port}"
     
-    logger.info(f"[Auto-Demo] Firing varied requests to {base_url}...")
+    # Railway sometimes prefers 0.0.0.0 internally instead of 127.0.0.1
+    base_url = f"http://0.0.0.0:{port}" 
     
-    async with httpx.AsyncClient(base_url=base_url) as client:
+    logger.info(f"[Auto-Demo] Preparing to fire requests to {base_url}...")
+    
+    # 1. Grab the first registered user to attribute traffic to their dashboard
+    headers = {}
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(text("SELECT id, email FROM users LIMIT 1"))
+            user = result.fetchone()
+            if user:
+                token = jwt.encode({"sub": user.id, "email": user.email}, settings.secret_key, algorithm="HS256")
+                headers["Authorization"] = f"Bearer {token}"
+                logger.info(f"[Auto-Demo] Attaching traffic to user: {user.email}")
+            else:
+                logger.warning("[Auto-Demo] No users found! Please create an account in the UI first.")
+                return # Abort if no user exists yet
+    except Exception as e:
+        logger.error(f"[Auto-Demo] Error fetching user for auth: {e}")
+        return
+
+    # 2. Fire the traffic with the Authorization header
+    async with httpx.AsyncClient(base_url=base_url, headers=headers) as client:
         try:
-            # 1. GET Requests (Successful Reads)
+            # GET Requests (Successful Reads)
             for _ in range(15):
                 await client.get(f"/api/v1/products?category=software&limit=20")
                 await asyncio.sleep(0.1)
                 
-            # 2. POST Requests (Successful Creates)
+            # POST Requests (Successful Creates)
             for i in range(5):
                 await client.post(
                     "/api/v1/users", 
@@ -59,7 +81,7 @@ async def simulate_demo_traffic():
                 )
                 await asyncio.sleep(0.1)
 
-            # 3. PUT Requests (Successful Updates)
+            # PUT Requests (Successful Updates)
             for i in range(3):
                 await client.put(
                     "/api/v1/users/usr_1001", 
@@ -67,11 +89,11 @@ async def simulate_demo_traffic():
                 )
                 await asyncio.sleep(0.1)
 
-            # 4. DELETE Requests (Successful Deletes)
+            # DELETE Requests (Successful Deletes)
             await client.delete("/api/v1/users/usr_9999")
             await asyncio.sleep(0.1)
 
-            # 5. Error Requests (404 and 422 to populate the error charts)
+            # Error Requests (404 and 422 to populate the error charts)
             await client.get("/api/v1/products/prod_not_found") # 404 Not Found
             await client.post("/api/v1/users", json={"name": "Bad User"}) # 422 Validation Error
             
