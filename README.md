@@ -2,7 +2,7 @@
 
 # LiveDocAI
 
-> A powerful development tool for API intelligence and traffic simulation.
+> A powerful development tool.
 
 ![Language](https://img.shields.io/badge/HTML-blue?style=for-the-badge)
 ![GitHub Stars](https://img.shields.io/github/stars/likith-sg/LiveDocAI?style=for-the-badge)
@@ -25,28 +25,24 @@
 ## 🎯 Overview
 LiveDocAI is a development tool designed to provide API intelligence and simulate realistic auto-traffic. It is built using FastAPI and utilizes a range of dependencies, including SQLAlchemy, Pydantic, and LangChain. The tool is intended for developers who need to test and optimize their APIs, and it solves the problem of generating realistic traffic patterns.
 
-The codebase includes features such as user isolation, request and response logging, and performance metrics. The `APILog` model, for example, stores information about each request, including the method, path, query parameters, and response status code. The `Endpoint` model represents a specific API endpoint and includes attributes such as the endpoint ID, method, and path.
+The codebase includes features such as user isolation, request and response logging, and performance metrics. The `APILog` model stores information about each request, including the method, path, query parameters, and response status code. The `Endpoint` model represents a specific API endpoint and includes attributes such as the endpoint ID, method, and path.
 
-The tool also includes a realistic auto-traffic simulator, which fires requests to the API endpoint to simulate real-world traffic patterns. This feature is useful for testing and optimizing API performance under load.
+The tool also includes a realistic auto-traffic simulator, which fires requests to the API endpoint to simulate real-world traffic patterns. This feature is useful for testing and optimizing API performance under various conditions.
 
 ## ✨ Features
-- 🔥 **API Logging** — logs each request and response, including metadata such as query parameters and response status code
-- 📊 **Performance Metrics** — tracks performance metrics such as latency, request size, and response size
-- 🚀 **Realistic Auto-Traffic Simulation** — simulates real-world traffic patterns to test and optimize API performance
-- 📈 **User Isolation** — isolates user traffic to provide accurate metrics and logging
-- 📝 **Request and Response Body Logging** — logs the request and response bodies for debugging and testing purposes
-- 📊 **Endpoint Metrics** — tracks metrics such as request count, response status code, and latency for each endpoint
-- 🔒 **Authentication and Authorization** — includes authentication and authorization mechanisms to secure the API
+- 🔥 **API Intelligence**: Provides insights into API usage and performance.
+- 📊 **Realistic Auto-Traffic Simulation**: Simulates real-world traffic patterns to test API performance.
+- 📈 **User Isolation**: Allows for isolated testing and analysis of API usage.
+- 📄 **Request and Response Logging**: Stores information about each request and response.
+- 📊 **Performance Metrics**: Tracks latency, request size, and response size.
+- 🚀 **FastAPI Integration**: Built using FastAPI for high-performance API development.
+- 📊 **SQLAlchemy Support**: Utilizes SQLAlchemy for database operations.
+- 🔒 **Authentication and Authorization**: Supports authentication and authorization using JWT.
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Python 3.8+
-- FastAPI
-- Uvicorn
-- SQLAlchemy
-- Pydantic
-- LangChain
+Python 3.8 or higher, FastAPI, Uvicorn, SQLAlchemy, and other dependencies listed in `requirements.txt`.
 
 ### Installation
 ```bash
@@ -59,9 +55,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 ## 📖 Usage
-To use LiveDocAI, simply start the server using the `uvicorn` command and access the API endpoint at `http://localhost:8000`. You can use tools such as `curl` or a web browser to test the API.
-
-For example, to simulate realistic auto-traffic, you can use the `simulate_demo_traffic` function, which fires requests to the API endpoint to simulate real-world traffic patterns.
+To simulate realistic auto-traffic, start the application and access the `/docs` endpoint to view available API endpoints. Use the `simulate_demo_traffic` function to fire requests to the API endpoint. To view API logs, access the `/logs` endpoint.
 
 ## 📁 Project Structure
 ```
@@ -86,11 +80,15 @@ requirements.txt
 ## 🛠️ Tech Stack
 | Technology | Version | Purpose |
 |-----------|---------|---------|
-| FastAPI | 0.115.0 | Web framework |
+| FastAPI | 0.115.0 | High-performance API development |
 | Uvicorn | 0.30.6 | ASGI server |
-| SQLAlchemy | 2.0.35 | Database ORM |
+| SQLAlchemy | 2.0.35 | Database operations |
 | Pydantic | 2.9.2 | Data validation and parsing |
-| LangChain | 0.3.1 | AI and machine learning library |
+| LangChain | 0.3.1 | AI-powered API development |
+| asyncpg | 0.29.0 | Asynchronous PostgreSQL driver |
+
+## ⚙️ Configuration
+To configure the application, set environment variables such as `PORT` to specify the port number.
 
 ## 🤝 Contributing
 1. Fork the repository
@@ -108,7 +106,7 @@ requirements.txt
 
 ## ⚠️ Documentation Drift Detected
 
-> The latest commit introduces significant changes to the main.py file, including new imports, middleware, and application structure, which are not reflected in the existing README/docs.
+> The latest commit did not change any files, but the documentation does not explicitly mention the current tech stack or project structure as reflected in the current code files, such as the use of FastAPI, SQLAlchemy, Pydantic, and LangChain, and the presence of specific routers and services.
 
 *This documentation was auto-regenerated by LiveDocAI to reflect the latest code changes.*
 
