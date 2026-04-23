@@ -2,7 +2,7 @@
 
 # LiveDocAI
 
-> A powerful development tool.
+> A powerful development tool for generating API documentation and simulating traffic.
 
 ![Language](https://img.shields.io/badge/HTML-blue?style=for-the-badge)
 ![GitHub Stars](https://img.shields.io/github/stars/likith-sg/LiveDocAI?style=for-the-badge)
@@ -23,30 +23,34 @@
 ---
 
 ## 🎯 Overview
-LiveDocAI is a development tool designed to provide API intelligence and simulate realistic auto-traffic. It is built using FastAPI and utilizes a range of dependencies, including SQLAlchemy, Pydantic, and LangChain. The tool is intended for developers who need to test and optimize their APIs, and it solves the problem of generating realistic traffic patterns.
+LiveDocAI is a development tool designed to generate API documentation and simulate traffic for testing purposes. It is built using FastAPI and utilizes a range of dependencies to provide a comprehensive set of features. The tool is intended for developers who need to test and document their APIs in a realistic and efficient manner. By using LiveDocAI, developers can ensure that their APIs are thoroughly tested and well-documented, which can help to improve the overall quality and reliability of their applications.
 
-The codebase includes features such as user isolation, request and response logging, and performance metrics. The `APILog` model stores information about each request, including the method, path, query parameters, and response status code. The `Endpoint` model represents a specific API endpoint and includes attributes such as the endpoint ID, method, and path.
+The tool includes a range of features, such as automatic traffic simulation, API logging, and documentation generation. These features make it an ideal solution for developers who need to test and document their APIs quickly and efficiently. Additionally, LiveDocAI is highly customizable, allowing developers to tailor the tool to meet their specific needs and requirements.
 
-The tool also includes a realistic auto-traffic simulator, which fires requests to the API endpoint to simulate real-world traffic patterns. This feature is useful for testing and optimizing API performance under various conditions.
+Overall, LiveDocAI is a powerful and flexible development tool that can help developers to improve the quality and reliability of their APIs. Its range of features and customizable design make it an ideal solution for a wide range of development projects.
 
 ## ✨ Features
-- 🔥 **API Intelligence**: Provides insights into API usage and performance.
-- 📊 **Realistic Auto-Traffic Simulation**: Simulates real-world traffic patterns to test API performance.
-- 📈 **User Isolation**: Allows for isolated testing and analysis of API usage.
-- 📄 **Request and Response Logging**: Stores information about each request and response.
-- 📊 **Performance Metrics**: Tracks latency, request size, and response size.
-- 🚀 **FastAPI Integration**: Built using FastAPI for high-performance API development.
-- 📊 **SQLAlchemy Support**: Utilizes SQLAlchemy for database operations.
-- 🔒 **Authentication and Authorization**: Supports authentication and authorization using JWT.
+- 🔥 **Automatic Traffic Simulation** — Simulates traffic to test API endpoints and generate realistic usage scenarios.
+- 📊 **API Logging** — Logs API requests and responses to provide detailed insights into API usage and performance.
+- 📄 **Documentation Generation** — Generates API documentation automatically, saving time and effort.
+- 🚀 **FastAPI Integration** — Built using FastAPI, providing a fast and efficient framework for building APIs.
+- 📈 **Customizable** — Highly customizable, allowing developers to tailor the tool to meet their specific needs and requirements.
+- 📊 **Performance Metrics** — Provides detailed performance metrics, including latency, request size, and response size.
+- 📝 **User Isolation** — Supports user isolation, allowing developers to test and document APIs for multiple users.
+- 🚫 **Error Handling** — Includes robust error handling, providing detailed error messages and stack traces.
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-Python 3.8 or higher, FastAPI, Uvicorn, SQLAlchemy, and other dependencies listed in `requirements.txt`.
+* Python 3.8 or later
+* FastAPI 0.115.0 or later
+* Uvicorn 0.30.6 or later
+* SQLAlchemy 2.0.35 or later
+* Asyncpg 0.29.0 or later
 
 ### Installation
 ```bash
-pip install -r requirements.txt
+pip install fastapi uvicorn sqlalchemy asyncpg
 ```
 
 ### Quick Start
@@ -55,7 +59,9 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 ## 📖 Usage
-To simulate realistic auto-traffic, start the application and access the `/docs` endpoint to view available API endpoints. Use the `simulate_demo_traffic` function to fire requests to the API endpoint. To view API logs, access the `/logs` endpoint.
+* Use the `simulate_demo_traffic` function to simulate traffic to test API endpoints.
+* Use the `APILog` model to log API requests and responses.
+* Use the `Endpoint` model to define API endpoints and generate documentation.
 
 ## 📁 Project Structure
 ```
@@ -71,8 +77,8 @@ docs_router.py
 endpoints.py
 services/
 endpoint_service.py
-database.py
 config.py
+database.py
 migration_user_isolation.py
 requirements.txt
 ```
@@ -80,15 +86,17 @@ requirements.txt
 ## 🛠️ Tech Stack
 | Technology | Version | Purpose |
 |-----------|---------|---------|
-| FastAPI | 0.115.0 | High-performance API development |
-| Uvicorn | 0.30.6 | ASGI server |
-| SQLAlchemy | 2.0.35 | Database operations |
-| Pydantic | 2.9.2 | Data validation and parsing |
-| LangChain | 0.3.1 | AI-powered API development |
-| asyncpg | 0.29.0 | Asynchronous PostgreSQL driver |
+| FastAPI | 0.115.0 | API Framework |
+| Uvicorn | 0.30.6 | ASGI Server |
+| SQLAlchemy | 2.0.35 | Database ORM |
+| Asyncpg | 0.29.0 | Database Driver |
+| Pydantic | 2.9.2 | Data Validation |
+| PyJWT | 2.8.0 | JSON Web Tokens |
+| Httpx | 0.27.2 | HTTP Client |
 
 ## ⚙️ Configuration
-To configure the application, set environment variables such as `PORT` to specify the port number.
+* `PORT`: The port number to use for the API server.
+* `DATABASE_URL`: The URL of the database to use for storing API logs and endpoint definitions.
 
 ## 🤝 Contributing
 1. Fork the repository
@@ -106,7 +114,7 @@ To configure the application, set environment variables such as `PORT` to specif
 
 ## ⚠️ Documentation Drift Detected
 
-> The latest commit did not change any files, but the documentation does not explicitly mention the current tech stack or project structure as reflected in the current code files, such as the use of FastAPI, SQLAlchemy, Pydantic, and LangChain, and the presence of specific routers and services.
+> The latest commit removed a significant portion of the README.md file, including the table of contents, overview, and other sections, which suggests that the documentation is no longer aligned with the actual code.
 
 *This documentation was auto-regenerated by LiveDocAI to reflect the latest code changes.*
 
