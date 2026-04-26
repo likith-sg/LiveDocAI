@@ -21,7 +21,6 @@ from starlette.types import ASGIApp
 logger = logging.getLogger(__name__)
 
 # ── Routes to SKIP — LiveDocAI's own internal API ────────────────────────────
-# We don't want to log our own dashboard polls, auth calls, etc.
 SKIP_PREFIXES = (
     "/api/logs",
     "/api/endpoints",
@@ -66,16 +65,17 @@ class TrafficCaptureMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         path = request.url.path
 
-        # Skip our own internal routes and OPTIONS preflight
-        if _should_skip(path) or request.method == "OPTIONS":
+        # ✅ FIX: Skip HEAD requests + existing skips
+        if _should_skip(path) or request.method in ("OPTIONS", "HEAD"):
             return await call_next(request)
 
         # Capture request body
         try:
-            body_bytes    = await request.body()
-            request_body  = body_bytes.decode("utf-8", errors="replace")[:2000] if body_bytes else None
+            body_bytes = await request.body()
+            request_body = body_bytes.decode("utf-8", errors="replace")[:2000] if body_bytes else None
         except Exception:
-            request_body  = None
+            body_bytes = None
+            request_body = None
 
         start_ms = time.time()
 
@@ -88,24 +88,26 @@ class TrafficCaptureMiddleware(BaseHTTPMiddleware):
 
         latency_ms = (time.time() - start_ms) * 1000
 
-        # Capture response body (best effort)
+        # ✅ FIX: Safe response body capture
         response_body = None
         try:
-            chunks = []
-            async for chunk in response.body_iterator:
-                chunks.append(chunk)
-            response_body_bytes = b"".join(chunks)
-            response_body = response_body_bytes.decode("utf-8", errors="replace")[:2000]
+            if hasattr(response, "body_iterator") and response.body_iterator:
+                chunks = []
+                async for chunk in response.body_iterator:
+                    chunks.append(chunk)
 
-            from starlette.responses import Response as StarResponse
-            response = StarResponse(
-                content=response_body_bytes,
-                status_code=response.status_code,
-                headers=dict(response.headers),
-                media_type=response.media_type,
-            )
-        except Exception:
-            pass
+                response_body_bytes = b"".join(chunks)
+                response_body = response_body_bytes.decode("utf-8", errors="replace")[:2000]
+
+                from starlette.responses import Response as StarResponse
+                response = StarResponse(
+                    content=response_body_bytes,
+                    status_code=response.status_code,
+                    headers=dict(response.headers),
+                    media_type=response.media_type,
+                )
+        except Exception as e:
+            logger.debug(f"[Middleware] Response capture failed: {e}")
 
         # Extract user_id from JWT
         user_id = _extract_user_id(request)
