@@ -71,7 +71,9 @@
     </style>
 
     <script>
-    const API = 'http://localhost:8000';
+    // Auto-detect API URL
+    const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const API = IS_LOCAL ? 'http://localhost:8000' : 'https://livedocai-production.up.railway.app';
 
     // ── Counter animation helper ──────────────────────────────
     function animateCount(el, target, duration=800) {
@@ -279,7 +281,7 @@
                     this.userForm = { name:'', org:'', email:'', password:'' };
                     this.navigate('dashboard');
                 } catch(e) {
-                    this.authError = 'Cannot connect to backend. Make sure server is running on localhost:8000.';
+                    this.authError = 'Cannot connect to backend. Please try again.';
                 } finally { this.authLoading = false; }
             },
 
@@ -583,7 +585,7 @@
                     this.refreshIcons();
 
                 } catch(e) {
-                    this.github.error = 'Cannot reach backend. Make sure uvicorn is running on localhost:8000.';
+                    this.github.error = 'Cannot reach backend. Make sure the server is running.';
                 } finally {
                     this.github.connecting = false;
                 }
@@ -685,7 +687,7 @@
                     await this.fetchGithubDashboard();
 
                 } catch(e) {
-                    this.github.prError = 'Cannot reach backend. Make sure uvicorn is running on localhost:8000.';
+                    this.github.prError = 'Cannot reach backend. Make sure the server is running.';
                 } finally {
                     this.github.generating = false;
                     this.refreshIcons();
@@ -926,7 +928,7 @@
                 </button>
                 <div class="relative flex items-center py-4"><div class="flex-grow border-t border-white/10"></div><span class="flex-shrink-0 mx-4 text-xs text-gray-500">or continue with</span><div class="flex-grow border-t border-white/10"></div></div>
                 <button type="button"
-                    @click="window.location.href = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:8000/api/auth/github' : 'https://livedocai-production.up.railway.app/api/auth/github'"
+                    @click="window.location.href = API + '/api/auth/github'"
                     class="w-full py-2.5 bg-[#24292e] border border-gray-700 text-white font-medium rounded-lg hover:bg-[#2f363d] transition-colors flex items-center justify-center space-x-2">
                     <i data-lucide="github" class="w-4 h-4"></i>
                     <span>Continue with GitHub</span>
