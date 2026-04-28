@@ -20,18 +20,24 @@ class Settings(BaseSettings):
     grok_api_key: str = ""
     groq_model:   str = "llama-3.3-70b-versatile"
 
-    # GitHub
+    # GitHub PAT (for doc generation / PR creation)
     github_token: str = ""
 
-    # CORS — comma separated list of allowed origins
-    # Local:      http://localhost:5500,http://127.0.0.1:5500
-    # Production: https://livedocai.vercel.app
+    # GitHub OAuth App
+    github_client_id:      str = ""
+    github_client_secret:  str = ""
+    github_oauth_redirect: str = "http://localhost:8000/api/auth/github/callback"
+    frontend_url:          str = "http://localhost:5500"
+
+    # CORS
     cors_origins: str = "http://localhost:5500,http://127.0.0.1:5500,http://localhost:3000"
 
     def get_cors_origins(self) -> List[str]:
         origins = [o.strip() for o in self.cors_origins.split(",") if o.strip()]
-        # Always allow localhost for development
-        dev = ["http://localhost:5500", "http://127.0.0.1:5500", "http://localhost:3000", "http://localhost:8000"]
+        dev = [
+            "http://localhost:5500", "http://127.0.0.1:5500",
+            "http://localhost:3000", "http://localhost:8000",
+        ]
         return list(set(origins + dev))
 
     class Config:
@@ -42,3 +48,4 @@ class Settings(BaseSettings):
 @lru_cache()
 def get_settings() -> Settings:
     return Settings()
+    
