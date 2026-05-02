@@ -195,125 +195,157 @@ async def github_oauth_callback(
     state: str   = Query(None),
     db:    AsyncSession = Depends(get_db),
 ):
-    """
-    GitHub redirects here after user authorizes.
-    Exchange code for token, get user info, create/update user, redirect to frontend.
-    """
+    """GitHub OAuth callback — exchange code for token, create/update user, redirect to frontend."""
+
     if not settings.github_client_id or not settings.github_client_secret:
-        raise HTTPException(status_code=500, detail="GitHub OAuth not configured.")
+        return RedirectResponse(f"{settings.frontend_url}?auth_error=GitHub+OAuth+not+configured")
 
-    async with httpx.AsyncClient(timeout=15.0) as client:
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
 
-        # Step 1 — Exchange code for GitHub access token
-        token_res = await client.post(
-            GITHUB_TOKEN_URL,
-            headers={"Accept": "application/json"},
-            data={
-                "client_id":     settings.github_client_id,
-                "client_secret": settings.github_client_secret,
-                "code":          code,
-                "redirect_uri":  settings.github_oauth_redirect,
+            # Step 1 — Exchange code for access token
+            token_res = await client.post(
+                GITHUB_TOKEN_URL,
+                headers={"Accept": "application/json"},
+                data={
+                    "client_id":     settings.github_client_id,
+                    "client_secret": settings.github_client_secret,
+                    "code":          code,
+                    "redirect_uri":  settings.github_oauth_redirect,
+                }
+            )
+            token_data   = token_res.json()
+            github_token = token_data.get("access_token")
+
+            if not github_token:
+                error = token_data.get("error_description", "Failed to get GitHub token")
+                return RedirectResponse(f"{settings.frontend_url}?auth_error={error}")
+
+            # Step 2 — Get GitHub user info
+            gh_headers = {
+                "Authorization": f"Bearer {github_token}",
+                "Accept":        "application/vnd.github+json",
             }
-        )
-        token_data    = token_res.json()
-        github_token  = token_data.get("access_token")
+            user_res = await client.get(GITHUB_USER_URL, headers=gh_headers)
+            gh_user  = user_res.json()
 
-        if not github_token:
-            error = token_data.get("error_description", "Failed to get GitHub token")
-            return RedirectResponse(f"{settings.frontend_url}?auth_error={error}")
+            # Step 3 — Get primary email
+            email = gh_user.get("email")
+            if not email:
+                email_res = await client.get(
+                    "https://api.github.com/user/emails", headers=gh_headers
+                )
+                if email_res.is_success:
+                    emails  = email_res.json()
+                    primary = next((e for e in emails if e.get("primary")), None)
+                    email   = primary["email"] if primary else None
+            if not email:
+                email = f"{gh_user.get('login', 'user')}@github.local"
 
-        # Step 2 — Get GitHub user info
-        gh_headers = {
-            "Authorization": f"Bearer {github_token}",
-            "Accept":        "application/vnd.github+json",
-        }
-        user_res  = await client.get(GITHUB_USER_URL, headers=gh_headers)
-        gh_user   = user_res.json()
-
-        # Step 3 — Get primary email if not public
-        email = gh_user.get("email")
-        if not email:
-            email_res = await client.get("https://api.github.com/user/emails", headers=gh_headers)
-            emails    = email_res.json()
-            primary   = next((e for e in emails if e.get("primary")), None)
-            email     = primary["email"] if primary else f"{gh_user['login']}@github.local"
-
-        github_id       = str(gh_user["id"])
-        github_username = gh_user["login"]
-        name            = gh_user.get("name") or github_username
+        github_id       = str(gh_user.get("id", uuid.uuid4()))
+        github_username = gh_user.get("login", "")
+        name            = gh_user.get("name") or github_username or "GitHub User"
         avatar_url      = gh_user.get("avatar_url", "")
 
-    # Ensure columns exist
-    try:
-        for col in [
+        # Step 4 — Ensure all columns exist (run once, ignore if already exist)
+        for col_sql in [
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS github_id VARCHAR(50)",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS github_token TEXT",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS github_username VARCHAR(100)",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(500)",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS api_key VARCHAR(100)",
         ]:
-            await db.execute(text(col))
-        await db.commit()
-    except Exception:
-        await db.rollback()
+            try:
+                await db.execute(text(col_sql))
+                await db.commit()
+            except Exception:
+                await db.rollback()
 
-    # Step 4 — Find or create user
-    result = await db.execute(
-        text("SELECT id, name, org, email, api_key FROM users WHERE github_id = :gid OR email = :email"),
-        {"gid": github_id, "email": email}
-    )
-    row = result.fetchone()
+        # Step 5 — Find user by email first (safer than github_id which may not exist yet)
+        user_id = None
+        api_key = None
 
-    if row:
-        # Update existing user with latest GitHub token
-        user_id = row.id
-        api_key = row.api_key or generate_api_key()
-        await db.execute(text("""
-            UPDATE users SET
-                github_token    = :github_token,
-                github_id       = :github_id,
-                github_username = :username,
-                avatar_url      = :avatar_url,
-                api_key         = COALESCE(api_key, :api_key)
-            WHERE id = :id
-        """), {
-            "github_token": github_token, "github_id": github_id,
-            "username": github_username, "avatar_url": avatar_url,
-            "api_key": api_key, "id": user_id,
+        try:
+            result = await db.execute(
+                text("SELECT id, api_key FROM users WHERE email = :email"),
+                {"email": email}
+            )
+            row = result.fetchone()
+            if row:
+                user_id = str(row.id)
+                api_key = row.api_key or generate_api_key()
+        except Exception:
+            await db.rollback()
+
+        if user_id:
+            # Update existing user
+            try:
+                await db.execute(text("""
+                    UPDATE users SET
+                        github_token    = :gt,
+                        github_username = :un,
+                        avatar_url      = :av,
+                        api_key         = COALESCE(api_key, :ak)
+                    WHERE id = :id
+                """), {
+                    "gt": github_token, "un": github_username,
+                    "av": avatar_url, "ak": api_key, "id": user_id,
+                })
+                await db.commit()
+            except Exception:
+                await db.rollback()
+        else:
+            # Create new user
+            user_id = str(uuid.uuid4())
+            api_key = generate_api_key()
+            try:
+                await db.execute(text("""
+                    INSERT INTO users
+                        (id, name, org, email, password, token, api_key,
+                         github_token, github_username, avatar_url)
+                    VALUES
+                        (:id, :name, '', :email, '', '', :api_key,
+                         :github_token, :username, :avatar_url)
+                """), {
+                    "id": user_id, "name": name, "email": email,
+                    "api_key": api_key, "github_token": github_token,
+                    "username": github_username, "avatar_url": avatar_url,
+                })
+                await db.commit()
+            except Exception as e:
+                await db.rollback()
+                logger.error(f"[OAuth] Failed to create user: {e}")
+                return RedirectResponse(
+                    f"{settings.frontend_url}?auth_error=Failed+to+create+account"
+                )
+
+        # Step 6 — Create JWT
+        jwt_token = create_jwt(user_id, email)
+        try:
+            await db.execute(
+                text("UPDATE users SET token = :token WHERE id = :id"),
+                {"token": jwt_token, "id": user_id}
+            )
+            await db.commit()
+        except Exception:
+            await db.rollback()
+
+        # Step 7 — Redirect to frontend with all params
+        import urllib.parse
+        params = urllib.parse.urlencode({
+            "oauth_token":        jwt_token,
+            "oauth_name":         name,
+            "oauth_email":        email,
+            "oauth_api_key":      api_key or "",
+            "oauth_user_id":      user_id,
+            "oauth_github_token": github_token,
+            "oauth_avatar":       avatar_url,
+            "oauth_username":     github_username,
         })
-    else:
-        # Create new user from GitHub profile
-        user_id = str(uuid.uuid4())
-        api_key = generate_api_key()
-        await db.execute(text("""
-            INSERT INTO users (id, name, org, email, password, token, api_key, github_id, github_token, github_username, avatar_url)
-            VALUES (:id, :name, '', :email, '', '', :api_key, :github_id, :github_token, :username, :avatar_url)
-        """), {
-            "id": user_id, "name": name, "email": email,
-            "api_key": api_key, "github_id": github_id,
-            "github_token": github_token, "username": github_username,
-            "avatar_url": avatar_url,
-        })
+        return RedirectResponse(f"{settings.frontend_url}?{params}")
 
-    # Create JWT for our app
-    jwt_token = create_jwt(user_id, email)
-    await db.execute(
-        text("UPDATE users SET token = :token WHERE id = :id"),
-        {"token": jwt_token, "id": user_id}
-    )
-    await db.commit()
-
-    # Step 5 — Redirect to frontend with JWT in URL param
-    # Frontend picks this up and stores in localStorage
-    redirect_url = (
-        f"{settings.frontend_url}?oauth_token={jwt_token}"
-        f"&oauth_name={name}"
-        f"&oauth_email={email}"
-        f"&oauth_api_key={api_key}"
-        f"&oauth_user_id={user_id}"
-        f"&oauth_github_token={github_token}"
-        f"&oauth_avatar={avatar_url}"
-        f"&oauth_username={github_username}"
-    )
-    return RedirectResponse(redirect_url)
-    
+    except Exception as e:
+        logger.error(f"[OAuth] Callback error: {e}", exc_info=True)
+        return RedirectResponse(
+            f"{settings.frontend_url}?auth_error=Authentication+failed.+Please+try+again."
+        )
