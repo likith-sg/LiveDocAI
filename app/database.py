@@ -33,3 +33,22 @@ async def create_tables():
     from app.models import APILog, Endpoint, Documentation, DocHistory
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Add columns that may not exist in older deployments
+    async with AsyncSessionLocal() as db:
+        migrations = [
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS api_key VARCHAR(100)",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS github_id VARCHAR(50)",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS github_token TEXT",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS github_username VARCHAR(100)",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(500)",
+            "ALTER TABLE api_logs ADD COLUMN IF NOT EXISTS user_id VARCHAR(36)",
+            "ALTER TABLE endpoints ADD COLUMN IF NOT EXISTS user_id VARCHAR(36)",
+        ]
+        for sql in migrations:
+            try:
+                from sqlalchemy import text
+                await db.execute(text(sql))
+                await db.commit()
+            except Exception:
+                await db.rollback()
