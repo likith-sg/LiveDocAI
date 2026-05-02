@@ -102,15 +102,6 @@ async def signup(body: SignupRequest, db: AsyncSession = Depends(get_db)):
     api_key = generate_api_key()
     token   = create_jwt(user_id, body.email.lower().strip())
 
-    try:
-        await db.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS api_key VARCHAR(100)"))
-        await db.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS github_token TEXT"))
-        await db.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS github_username VARCHAR(100)"))
-        await db.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(500)"))
-        await db.commit()
-    except Exception:
-        await db.rollback()
-
     await db.execute(text("""
         INSERT INTO users (id, name, org, email, password, token, api_key)
         VALUES (:id, :name, :org, :email, :password, :token, :api_key)
