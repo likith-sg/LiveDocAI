@@ -162,6 +162,18 @@
                         this.$nextTick(() => this.initCharts());
                         this.fetchAll();
                         this.fetchGithubDashboard();
+
+                        // Auto-populate GitHub token from OAuth login
+                        // so user doesn't need to enter PAT manually
+                        if (this.currentUser.github_token && !this.github.token) {
+                            this.github.token = this.currentUser.github_token;
+                        }
+                        // Also check sessionStorage
+                        const storedToken = sessionStorage.getItem('livedocai_github_token');
+                        if (storedToken && !this.github.token) {
+                            this.github.token = storedToken;
+                        }
+
                         // Auto-reconnect GitHub repo if previously connected
                         const savedGh = localStorage.getItem('livedocai_github');
                         if (savedGh) {
@@ -169,7 +181,6 @@
                                 const gh = JSON.parse(savedGh);
                                 if (gh && gh.connected && gh.repoUrl) {
                                     this.github.repoUrl = gh.repoUrl;
-                                    // Re-fetch repo info silently
                                     this.$nextTick(() => this.connectGithub());
                                 }
                             } catch(e) {}
@@ -180,7 +191,15 @@
                     this.refreshIcons();
                     if (val === 'main') this.$nextTick(() => this.initCharts());
                     if (val === 'logs') this.fetchLogs();
-                    if (val === 'github') this.fetchGithubDashboard();
+                    if (val === 'github') {
+                        this.fetchGithubDashboard();
+                        // Ensure github token is set from OAuth when switching to github tab
+                        if (!this.github.token) {
+                            this.github.token = this.currentUser.github_token
+                                || sessionStorage.getItem('livedocai_github_token')
+                                || '';
+                        }
+                    }
                 });
 
                 setInterval(() => { this.metrics.requests += Math.floor(Math.random() * 5); }, 2000);
@@ -1681,8 +1700,8 @@
                                 </div>
                             </div>
 
-                            <!-- Token warning -->
-                            <div x-show="!github.token" class="flex items-start space-x-3 bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-4">
+                            <!-- Token warning — hide for OAuth users -->
+                            <div x-show="!github.token && !currentUser.github_token && !currentUser.token" class="flex items-start space-x-3 bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-4">
                                 <i data-lucide="alert-triangle" class="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5"></i>
                                 <div>
                                     <p class="text-sm text-yellow-400 font-medium">Token required to open PRs</p>
@@ -1715,7 +1734,7 @@
                             </div>
 
                             <!-- Generate button -->
-                            <button @click="generateDocs()" :disabled="github.generating || !github.token"
+                            <button @click="generateDocs()" :disabled="github.generating || (!github.token && !currentUser.github_token)"
                                 class="w-full py-3.5 rounded-xl font-semibold text-sm transition-all flex items-center justify-center space-x-3 disabled:opacity-40 disabled:cursor-not-allowed"
                                 :class="github.token ? 'bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white shadow-[0_0_20px_rgba(139,92,246,0.3)]' : 'bg-gray-800 text-gray-500'">
                                 <svg x-show="github.generating" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
